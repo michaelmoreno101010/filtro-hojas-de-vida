@@ -14,7 +14,7 @@ Fecha de consulta de todas las fuentes: 22 de noviembre de 2026.
 | R6 | Reimers y Gurevych (2019) + ficha del modelo en Hugging Face | Artículo + ficha técnica | Usar embeddings multilingües con licencia Apache-2.0 |
 | R7 | Manning, Raghavan y Schütze (2008), cap. 8 | Libro de texto | Fijar las etiquetas de relevancia y las métricas (nDCG@10, MRR) antes de evaluar |
 | R8 | Robertson y Zaragoza (2009), BM25 | Artículo de revisión | Usar BM25 como línea base |
-
+| R9 | Saldivar et al. (2025) | Artículo | Generar CVs sintéticos con secciones de educación, experiencia y habilidades para probar equidad |
 ## Notas por fuente
 
 **R1 (Amazon).** Este caso me muestra que un modelo entrenado con hojas de vida del pasado puede aprender a penalizar a las mujeres, por ejemplo por la palabra "women's". Amazon dijo que la herramienta nunca fue usada por sus reclutadores para evaluar candidatos, aunque sí miraban sus recomendaciones; por eso cito el caso con cuidado. De aquí tomo la idea de mi prueba contrafactual: cambiar solo el género o el nombre en un mismo CV y medir cuánto se mueve su posición.
@@ -69,4 +69,8 @@ Consultado: 22/11/2026.
 
 R8. Robertson, S. y Zaragoza, H. (2009). The Probabilistic Relevance Framework: BM25 and Beyond. *Foundations and Trends in Information Retrieval*, 3(4), 333–389. DOI: 10.1561/1500000019.
 URL: https://doi.org/10.1561/1500000019
+Consultado: 22/11/2026.
+
+R9. Saldivar, J., Gatzioura, A. y Castillo, C. (28 de agosto de 2025). *Synthetic CVs To Build and Test Fairness-Aware Hiring Tools*. arXiv:2508.21179.
+URL: https://arxiv.org/abs/2508.21179
 Consultado: 22/11/2026.
