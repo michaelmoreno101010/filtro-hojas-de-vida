@@ -1,544 +1,207 @@
-"""Generador de ofertas y hojas de vida (CVs) sintéticas en español.
+"""Pruebas del generador de datos sintéticos.
 
-Qué produce (en la carpeta de salida, por defecto ``data/``):
-    ofertas.csv      10 ofertas de trabajo, una por rol, con su partición (dev/test).
-    cvs.csv          CVs sintéticos: ``n_cvs_base`` originales + ``n_gemelos`` gemelos.
-    relevancia.csv   Relevancia (0 a 3) de cada par (oferta, CV), calculada con una
-                     regla fija definida en ``relevancia()``.
-    metadatos.json   Semilla, conteos, versión de Python y huellas SHA-256 de los CSV.
-
-Ideas de diseño:
-    * Cada CV nace de un perfil latente (rol, años, habilidades). El texto se escribe
-      después, con sinónimos y frases distintas, para que la coincidencia exacta de
-      palabras no resuelva el problema por sí sola.
-    * La relevancia se calcula con el perfil latente, NUNCA con el texto ni con el
-      género. Por eso, cualquier diferencia de trato por género en un ranking es sesgo
-      del modelo y no una diferencia real entre candidatos.
-    * Un "gemelo" es el mismo CV con otro nombre de pila del género opuesto y las
-      palabras con género gramatical cambiadas (ingeniero/ingeniera, etc.).
-      Lo demás es idéntico, lo que permite la prueba contrafactual.
-
-Uso:
-    python -m src.generar_datos
-    python -m src.generar_datos --config configs/generacion.json --salida data
-
-Solo usa la biblioteca estándar de Python.
+Se ejecutan con:  python -m pytest -q
 """
 
-from __future__ import annotations
-
-import argparse
 import csv
-import hashlib
 import json
-import platform
-import random
-import re
-from datetime import datetime, timezone
+import sys
+from collections import Counter
 from pathlib import Path
 
+import pytest
+
 RAIZ = Path(__file__).resolve().parents[1]
-VERSION_GENERADOR = "1.0.0"
-
-# Palabras cuya forma cambia con el género. En las plantillas se escriben como
-# {clave} (minúscula) o {Clave} (con mayúscula inicial).
-GENERO_FORMAS = {
-    "desarrollador": ("desarrollador", "desarrolladora"),
-    "enfermero": ("enfermero", "enfermera"),
-    "contador": ("contador", "contadora"),
-    "ingeniero": ("ingeniero", "ingeniera"),
-    "comprometido": ("comprometido", "comprometida"),
-    "orientado": ("orientado", "orientada"),
-    "motivado": ("motivado", "motivada"),
-    "egresado": ("egresado", "egresada"),
-    "encargado": ("encargado", "encargada"),
-}
-
-FRASES_EXPERIENCIA = [
-    "Responsable de {lista} en {ctx}.",
-    "Apoyo a {ctx} con {lista}.",
-    "Uso diario de {lista}; trabajo en equipo con otras áreas.",
-    "Participación en {ctx} aplicando {lista}.",
-    "{Encargado} de tareas relacionadas con {lista}.",
-    "Colaboré en {ctx} y mejoré procesos mediante {lista}.",
-]
-
-FRASES_PERFIL = [
-    "Profesional {comprometido} con {anios_txt} de experiencia, {orientado} a resultados.",
-    "{Egresado} de {estudio}, {motivado} por aprender y aportar en {ctx}.",
-    "Persona responsable y organizada, con {anios_txt} de trayectoria en {ctx}.",
-]
-
-NIVELES_INGLES = ["básico", "intermedio", "avanzado"]
-
-_PATRON_MARCA = re.compile(r"\{([A-Za-z_]+)\}")
-
-
-# ---------------------------------------------------------------------------
-# Utilidades de texto
-# ---------------------------------------------------------------------------
-def aplicar_genero(plantilla: str, genero: str) -> str:
-    """Reemplaza las marcas de género ({enfermero}, {Egresado}, ...) según ``genero``.
-
-    ``genero`` es "M" o "F". Las marcas que no son de género se dejan intactas.
-    """
-    idx = 0 if genero == "M" else 1
-
-    def _sustituir(m: re.Match) -> str:
-        clave = m.group(1)
-        formas = GENERO_FORMAS.get(clave.lower())
-        if formas is None:
-            return m.group(0)
-        forma = formas[idx]
-        return forma[0].upper() + forma[1:] if clave[0].isupper() else forma
-
-    return _PATRON_MARCA.sub(_sustituir, plantilla)
-
-
-def neutralizar(texto: str, nombre: str) -> str:
-    """Devuelve el texto sin el nombre y sin las formas con género.
-
-    Sirve para comprobar que un CV y su gemelo solo difieren en esas cosas.
-    """
-    t = texto.replace(nombre, "NOMBRE").lower()
-    for clave, (masc, fem) in GENERO_FORMAS.items():
-        t = re.sub(rf"\b(?:{masc}|{fem})\b", f"<{clave}>", t)
-    return t
-
-
-def lista_en_texto(items: list[str]) -> str:
-    """Une elementos con comas y una 'y' final (o 'e' si el siguiente empieza por i/hi)."""
-    if not items:
-        return ""
-    if len(items) == 1:
-        return items[0]
-    ultimo = items[-1]
-    minus = ultimo.lower()
-    conj = "e" if (minus.startswith("i") or (minus.startswith("hi") and not minus.startswith("hie"))) else "y"
-    return ", ".join(items[:-1]) + f" {conj} " + ultimo
-
-
-def anios_en_texto(n: int) -> str:
-    if n < 1:
-        return "formación reciente"
-    return "1 año" if n == 1 else f"{n} años"
-
-
-def cargar_json(ruta: Path | str) -> dict:
-    with open(ruta, encoding="utf-8") as f:
-        return json.load(f)
-
-
-# ---------------------------------------------------------------------------
-# Validación del catálogo
-# ---------------------------------------------------------------------------
-def validar_catalogo(cat: dict, cfg: dict) -> None:
-    """Lanza ValueError si el catálogo o la configuración son incoherentes."""
-    habilidades = cat["habilidades"]
-    for h, formas in habilidades.items():
-        if len(formas) < 2:
-            raise ValueError(f"La habilidad '{h}' necesita al menos 2 formas de escribirse")
-    roles_en_sectores = []
-    for sid, sector in cat["sectores"].items():
-        for rid in sector["roles"]:
-            if rid not in cat["roles"]:
-                raise ValueError(f"El sector '{sid}' menciona un rol inexistente: {rid}")
-            if cat["roles"][rid]["sector"] != sid:
-                raise ValueError(f"El rol '{rid}' no coincide con el sector '{sid}'")
-            roles_en_sectores.append(rid)
-    if sorted(roles_en_sectores) != sorted(cat["roles"]):
-        raise ValueError("Todos los roles deben aparecer exactamente una vez en un sector")
-    for rid, rol in cat["roles"].items():
-        for h in rol["nucleo"] + rol["opcional"]:
-            if h not in habilidades:
-                raise ValueError(f"El rol '{rid}' usa una habilidad inexistente: {h}")
-        if len(rol["nucleo"]) != 5:
-            raise ValueError(f"El rol '{rid}' debe tener 5 habilidades núcleo")
-    particion = cfg["particion_ofertas"]
-    asignados = sorted(particion["dev"] + particion["test"])
-    if asignados != sorted(cat["roles"]):
-        raise ValueError("Cada rol debe estar exactamente una vez en 'dev' o en 'test'")
-    n_roles = len(cat["roles"])
-    if cfg["n_cvs_base"] % n_roles != 0:
-        raise ValueError("n_cvs_base debe ser múltiplo del número de roles")
-    if cfg["n_gemelos"] % n_roles != 0:
-        raise ValueError("n_gemelos debe ser múltiplo del número de roles")
-    if cfg["n_gemelos"] // n_roles > cfg["n_cvs_base"] // n_roles:
-        raise ValueError("No puede haber más gemelos que CVs por rol")
-
-
-# ---------------------------------------------------------------------------
-# Ofertas
-# ---------------------------------------------------------------------------
-def construir_oferta(num: int, rol_id: str, cat: dict, cfg: dict) -> dict:
-    rol = cat["roles"][rol_id]
-    sector = cat["sectores"][rol["sector"]]
-    nucleo = [cat["habilidades"][h][0] for h in rol["nucleo"]]
-    opcional = [cat["habilidades"][h][0] for h in rol["opcional"]]
-    particion = "dev" if rol_id in cfg["particion_ofertas"]["dev"] else "test"
-    texto = (
-        f"Se busca {rol['oferta_titulo']} para el sector de {sector['nombre'].lower()}. "
-        f"Trabajará en {sector['contextos'][0]}.\n"
-        f"Requisitos: experiencia mínima de {rol['min_anios']} años; "
-        f"conocimientos en {lista_en_texto(nucleo)}.\n"
-        f"Deseable: {lista_en_texto(opcional)}."
-    )
-    return {
-        "oferta_id": f"of_{num:02d}",
-        "rol": rol_id,
-        "sector": rol["sector"],
-        "titulo": rol["oferta_titulo"],
-        "min_anios": rol["min_anios"],
-        "nucleo": list(rol["nucleo"]),
-        "opcional": list(rol["opcional"]),
-        "particion": particion,
-        "texto": texto,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Perfil latente y relevancia
-# ---------------------------------------------------------------------------
-def generar_latente(rng: random.Random, rol_id: str, cfg: dict, cat: dict) -> dict:
-    """Sortea el perfil de un candidato: calidad, habilidades y años de experiencia."""
-    rol = cat["roles"][rol_id]
-    pesos = cfg["calidad_pesos"]
-    calidad = rng.choices(list(pesos), weights=list(pesos.values()))[0]
-    p_nucleo = cfg["prob_habilidad_nucleo"][calidad]
-
-    habilidades = [h for h in rol["nucleo"] if rng.random() < p_nucleo]
-    habilidades += [h for h in rol["opcional"] if h not in habilidades and rng.random() < cfg["prob_opcional"]]
-    for otro_id in cat["sectores"][rol["sector"]]["roles"]:
-        if otro_id == rol_id:
-            continue
-        for h in cat["roles"][otro_id]["nucleo"]:
-            if h not in habilidades and rng.random() < cfg["prob_transversal"]:
-                habilidades.append(h)
-    if not habilidades:
-        habilidades.append(rng.choice(rol["nucleo"]))
-
-    a = cfg["anios"]
-    anios = min(a["max"], int(rng.triangular(a["min"], a["max"] + 1, a["moda"])))
-    return {
-        "rol": rol_id,
-        "sector": rol["sector"],
-        "anios": anios,
-        "calidad": calidad,
-        "habilidades": sorted(set(habilidades)),
-    }
-
-
-def relevancia(cv: dict, oferta: dict, umbrales: dict) -> int:
-    """Relevancia (0 a 3) de un CV para una oferta. NO usa el género ni el texto.
-
-    3 = mismo rol, cubre >= 80 % de las habilidades requeridas y cumple la experiencia mínima.
-    2 = mismo rol y cubre >= 60 % de las habilidades requeridas.
-    1 = mismo rol y cubre >= 40 %, o mismo sector y cubre >= 60 %.
-    0 = cualquier otro caso.
-    (Los porcentajes salen de ``umbrales`` y se fijan en configs/generacion.json.)
-    """
-    nucleo = set(oferta["nucleo"])
-    cobertura = len(set(cv["habilidades"]) & nucleo) / len(nucleo)
-    eps = 1e-9
-    mismo_rol = cv["rol"] == oferta["rol"]
-    mismo_sector = cv["sector"] == oferta["sector"]
-    experiencia_ok = cv["anios"] >= oferta["min_anios"]
-
-    if mismo_rol and cobertura + eps >= umbrales["cobertura_3"] and experiencia_ok:
-        return 3
-    if mismo_rol and cobertura + eps >= umbrales["cobertura_2"]:
-        return 2
-    if (mismo_rol and cobertura + eps >= umbrales["cobertura_1"]) or (
-        mismo_sector and cobertura + eps >= umbrales["cobertura_1_mismo_sector"]
-    ):
-        return 1
-    return 0
-
-
-# ---------------------------------------------------------------------------
-# Redacción del CV
-# ---------------------------------------------------------------------------
-def _repartir_anios(rng: random.Random, anios: int) -> list[int]:
-    """Divide los años de experiencia en 1 a 3 cargos consecutivos (cada uno >= 1 año)."""
-    if anios < 3:
-        return [anios]
-    k = rng.choice([2, 3])
-    cortes = sorted(rng.sample(range(1, anios), k - 1))
-    puntos = [0] + cortes + [anios]
-    return [puntos[i + 1] - puntos[i] for i in range(k)]
-
-
-def renderizar_cv(latente: dict, nombre: str, genero: str, cat: dict, cfg: dict, semilla: str) -> str:
-    """Escribe el texto del CV. Todas las decisiones al azar dependen solo de ``semilla``.
-
-    Importante: el género NO consume números aleatorios; solo cambia las palabras con
-    género gramatical y el nombre. Por eso un CV y su gemelo (misma semilla) quedan
-    idénticos salvo por esos elementos.
-    """
-    rng = random.Random(semilla)
-    rol = cat["roles"][latente["rol"]]
-    sector = cat["sectores"][rol["sector"]]
-    ref = cfg["anio_referencia"]
-    anios = latente["anios"]
-
-    forma = {h: rng.choice(cat["habilidades"][h]) for h in latente["habilidades"]}
-    estudio = rng.choice(rol["estudios"])
-    institucion = f"{rng.choice(cat['instituciones']['prefijos'])} {rng.choice(cat['instituciones']['sufijos'])}"
-    anio_grado = ref - anios - rng.randint(0, 1)
-    ctx_perfil = rng.choice(sector["contextos"])
-    frase_perfil = rng.choice(FRASES_PERFIL)
-
-    perfil = frase_perfil.format_map(
-        _Seguro(anios_txt=anios_en_texto(anios), estudio=estudio, ctx=ctx_perfil)
-    )
-
-    # Cargos (del más antiguo al más reciente)
-    cargos = []
-    if anios < 1:
-        duraciones = [1]
-        titulos = ["Práctica profesional"]
-        inicios = [ref - 1]
-    else:
-        duraciones = _repartir_anios(rng, anios)
-        titulos = []
-        for i in range(len(duraciones)):
-            if len(duraciones) > 1 and i == 0:
-                titulos.append(rol["junior"])
-            else:
-                titulos.append(rng.choice(rol["titulos"]))
-        inicios = []
-        acumulado = 0
-        for d in duraciones:
-            inicios.append(ref - anios + acumulado)
-            acumulado += d
-
-    for i, (titulo, ini, dur) in enumerate(zip(titulos, inicios, duraciones)):
-        es_ultimo = i == len(duraciones) - 1
-        fin = "actualidad" if es_ultimo else str(ini + dur)
-        empresa = f"{rng.choice(cat['empresas']['prefijos'])} {rng.choice(cat['empresas']['sufijos'])}"
-        n_hab = min(len(latente["habilidades"]), rng.choice([2, 3]))
-        elegidas = rng.sample(latente["habilidades"], n_hab)
-        descripcion = rng.choice(FRASES_EXPERIENCIA).format_map(
-            _Seguro(lista=lista_en_texto([forma[h] for h in elegidas]), ctx=rng.choice(sector["contextos"]))
-        )
-        cargos.append((titulo, empresa, ini, fin, descripcion))
-
-    orden_hab = list(latente["habilidades"])
-    rng.shuffle(orden_hab)
-    nivel_ingles = rng.choice(NIVELES_INGLES)
-
-    titulo_actual = cargos[-1][0]
-    lineas = [
-        nombre,
-        aplicar_genero(titulo_actual, genero),
-        "",
-        "PERFIL",
-        aplicar_genero(perfil, genero),
-        "",
-        "EDUCACIÓN",
-        f"- {estudio}, {institucion} ({anio_grado})",
-        "",
-        "EXPERIENCIA",
-    ]
-    for titulo, empresa, ini, fin, descripcion in reversed(cargos):
-        lineas.append(f"- {aplicar_genero(titulo, genero)}, {empresa} ({ini}-{fin}): {aplicar_genero(descripcion, genero)}")
-    lineas += [
-        "",
-        "HABILIDADES",
-        ", ".join(forma[h] for h in orden_hab),
-        "",
-        "IDIOMAS",
-        f"Español (nativo); inglés ({nivel_ingles})",
-    ]
-    return "\n".join(lineas)
-
-
-class _Seguro(dict):
-    """format_map que deja intactas las marcas de género para resolverlas después."""
-
-    def __missing__(self, clave: str) -> str:
-        return "{" + clave + "}"
-
-
-# ---------------------------------------------------------------------------
-# Nombres
-# ---------------------------------------------------------------------------
-def nombre_completo(semilla: str, indice: int, genero: str, cat: dict) -> str:
-    """Nombre ficticio. Los apellidos no dependen del género (los gemelos los comparten)."""
-    apellidos = random.Random(f"{semilla}-apellidos-{indice}").sample(cat["apellidos"], 2)
-    pila = random.Random(f"{semilla}-pila-{indice}-{genero}").choice(cat["nombres"][genero])
-    return f"{pila} {apellidos[0]} {apellidos[1]}"
-
-
-# ---------------------------------------------------------------------------
-# Generación completa
-# ---------------------------------------------------------------------------
-def generar(cfg: dict, cat: dict) -> dict:
-    """Crea en memoria ofertas, CVs y relevancias. No escribe archivos."""
-    validar_catalogo(cat, cfg)
-    semilla = cfg["semilla"]
-    roles = list(cat["roles"])
-    n_roles = len(roles)
-    n_base = cfg["n_cvs_base"]
-
-    ofertas = [construir_oferta(j, rol_id, cat, cfg) for j, rol_id in enumerate(roles, start=1)]
-
-    # Un rol por CV, repartido parejo y mezclado para que el orden no delate el rol.
-    asignacion = [roles[i % n_roles] for i in range(n_base)]
-    random.Random(f"{semilla}-orden").shuffle(asignacion)
-
-    # Género balanceado dentro de cada rol.
-    generos = [""] * n_base
-    for rol_id in roles:
-        indices = [i for i, r in enumerate(asignacion) if r == rol_id]
-        mitad = len(indices) // 2
-        asignados = ["F"] * mitad + ["M"] * (len(indices) - mitad)
-        random.Random(f"{semilla}-generos-{rol_id}").shuffle(asignados)
-        for i, g in zip(indices, asignados):
-            generos[i] = g
-
-    # Gemelos: la misma cantidad por rol.
-    por_rol = cfg["n_gemelos"] // n_roles
-    con_gemelo = set()
-    for rol_id in roles:
-        indices = [i for i, r in enumerate(asignacion) if r == rol_id]
-        elegidos = random.Random(f"{semilla}-gemelos-{rol_id}").sample(indices, por_rol)
-        con_gemelo.update(elegidos)
-
-    cvs = []
-    gemelos = []
-    for i, rol_id in enumerate(asignacion):
-        cv_id = f"cv_{i + 1:03d}"
-        latente = generar_latente(random.Random(f"{semilla}-latente-{i}"), rol_id, cfg, cat)
-        semilla_render = f"{semilla}-render-{i}"
-        genero = generos[i]
-        nombre = nombre_completo(str(semilla), i, genero, cat)
-        base = {
-            "cv_id": cv_id,
-            "grupo_id": cv_id,
-            "es_gemelo": 0,
-            "sector": latente["sector"],
-            "rol": latente["rol"],
-            "anios": latente["anios"],
-            "genero": genero,
-            "nombre": nombre,
-            "calidad": latente["calidad"],
-            "habilidades": latente["habilidades"],
-            "texto": renderizar_cv(latente, nombre, genero, cat, cfg, semilla_render),
-        }
-        cvs.append(base)
-        if i in con_gemelo:
-            genero_g = "M" if genero == "F" else "F"
-            nombre_g = nombre_completo(str(semilla), i, genero_g, cat)
-            gemelo = dict(base)
-            gemelo.update(
-                {
-                    "cv_id": f"{cv_id}_g",
-                    "es_gemelo": 1,
-                    "genero": genero_g,
-                    "nombre": nombre_g,
-                    "texto": renderizar_cv(latente, nombre_g, genero_g, cat, cfg, semilla_render),
-                }
-            )
-            gemelos.append(gemelo)
-
-    todos = cvs + gemelos
-    pares = []
-    for oferta in ofertas:
-        for cv in todos:
-            pares.append(
-                {
-                    "oferta_id": oferta["oferta_id"],
-                    "cv_id": cv["cv_id"],
-                    "relevancia": relevancia(cv, oferta, cfg["relevancia"]),
-                }
-            )
-    return {"ofertas": ofertas, "cvs": todos, "relevancia": pares}
-
-
-# ---------------------------------------------------------------------------
-# Escritura de archivos
-# ---------------------------------------------------------------------------
-def _escribir_csv(ruta: Path, columnas: list[str], filas: list[dict]) -> None:
-    with open(ruta, "w", encoding="utf-8", newline="") as f:
-        escritor = csv.DictWriter(f, fieldnames=columnas, lineterminator="\n")
-        escritor.writeheader()
-        for fila in filas:
-            escritor.writerow({c: fila[c] for c in columnas})
-
-
-def _sha256(ruta: Path) -> str:
-    return hashlib.sha256(ruta.read_bytes()).hexdigest()
-
-
-def escribir_salida(datos: dict, cfg: dict, salida: Path) -> dict:
-    """Guarda los CSV y metadatos.json. Devuelve el diccionario de metadatos."""
-    salida.mkdir(parents=True, exist_ok=True)
-
-    ofertas = [dict(o, nucleo="|".join(o["nucleo"]), opcional="|".join(o["opcional"])) for o in datos["ofertas"]]
-    cvs = [dict(c, habilidades="|".join(c["habilidades"])) for c in datos["cvs"]]
-
-    _escribir_csv(
-        salida / "ofertas.csv",
-        ["oferta_id", "rol", "sector", "titulo", "min_anios", "nucleo", "opcional", "particion", "texto"],
-        ofertas,
-    )
-    _escribir_csv(
-        salida / "cvs.csv",
-        ["cv_id", "grupo_id", "es_gemelo", "sector", "rol", "anios", "genero", "nombre", "calidad", "habilidades", "texto"],
-        cvs,
-    )
-    _escribir_csv(salida / "relevancia.csv", ["oferta_id", "cv_id", "relevancia"], datos["relevancia"])
-
-    conteo_rel = {str(n): 0 for n in range(4)}
-    for par in datos["relevancia"]:
-        conteo_rel[str(par["relevancia"])] += 1
-    conteo_gen = {"F": 0, "M": 0}
+sys.path.insert(0, str(RAIZ))
+
+from src import generar_datos as gd  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def cfg():
+    return gd.cargar_json(RAIZ / "configs" / "generacion.json")
+
+
+@pytest.fixture(scope="module")
+def cat():
+    return gd.cargar_json(RAIZ / "configs" / "catalogo.json")
+
+
+@pytest.fixture(scope="module")
+def datos(cfg, cat):
+    return gd.generar(cfg, cat)
+
+
+def test_conteos(datos, cfg):
+    assert len(datos["ofertas"]) == 10
+    assert len(datos["cvs"]) == cfg["n_cvs_base"] + cfg["n_gemelos"]
+    assert len(datos["relevancia"]) == 10 * len(datos["cvs"])
+
+
+def test_determinismo(cfg, cat):
+    """Misma semilla, mismos datos."""
+    a = gd.generar(cfg, cat)
+    b = gd.generar(cfg, cat)
+    assert a == b
+
+
+def test_semilla_distinta_cambia_datos(cfg, cat):
+    otra = dict(cfg, semilla=cfg["semilla"] + 1)
+    a = gd.generar(cfg, cat)
+    b = gd.generar(otra, cat)
+    assert [c["texto"] for c in a["cvs"]] != [c["texto"] for c in b["cvs"]]
+
+
+def test_ids_unicos(datos):
+    ids = [c["cv_id"] for c in datos["cvs"]]
+    assert len(ids) == len(set(ids))
+
+
+def test_genero_balanceado_por_rol(datos):
+    """Cada rol tiene casi la misma cantidad de mujeres y de hombres (CVs base)."""
+    por_rol = {}
     for cv in datos["cvs"]:
-        conteo_gen[cv["genero"]] += 1
+        if cv["es_gemelo"] == 0:
+            por_rol.setdefault(cv["rol"], Counter())[cv["genero"]] += 1
+    for rol, conteo in por_rol.items():
+        assert abs(conteo["F"] - conteo["M"]) <= 1, rol
 
-    metadatos = {
-        "version_generador": VERSION_GENERADOR,
-        "semilla": cfg["semilla"],
-        "fecha_generacion_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-        "python": platform.python_version(),
-        "n_ofertas": len(datos["ofertas"]),
-        "n_cvs_base": cfg["n_cvs_base"],
-        "n_gemelos": cfg["n_gemelos"],
-        "n_cvs_total": len(datos["cvs"]),
-        "n_pares": len(datos["relevancia"]),
-        "pares_por_nivel_relevancia": conteo_rel,
-        "cvs_por_genero": conteo_gen,
-        "umbrales_relevancia": cfg["relevancia"],
-        "sha256": {nombre: _sha256(salida / nombre) for nombre in ["ofertas.csv", "cvs.csv", "relevancia.csv"]},
+
+def test_roles_repartidos_parejo(datos):
+    conteo = Counter(c["rol"] for c in datos["cvs"] if c["es_gemelo"] == 0)
+    assert set(conteo.values()) == {30}
+
+
+def test_gemelos_solo_difieren_en_nombre_y_genero(datos):
+    por_id = {c["cv_id"]: c for c in datos["cvs"]}
+    gemelos = [c for c in datos["cvs"] if c["es_gemelo"] == 1]
+    assert len(gemelos) == 100
+    for g in gemelos:
+        base = por_id[g["grupo_id"]]
+        assert g["cv_id"] == base["cv_id"] + "_g"
+        assert g["genero"] != base["genero"]
+        assert g["nombre"] != base["nombre"]
+        assert g["habilidades"] == base["habilidades"]
+        assert g["anios"] == base["anios"]
+        assert g["rol"] == base["rol"]
+        assert gd.neutralizar(g["texto"], g["nombre"]) == gd.neutralizar(base["texto"], base["nombre"])
+
+
+def test_gemelos_tienen_misma_relevancia(datos):
+    """La relevancia NO depende del género: un CV y su gemelo valen lo mismo."""
+    rel = {(p["oferta_id"], p["cv_id"]): p["relevancia"] for p in datos["relevancia"]}
+    for cv in datos["cvs"]:
+        if cv["es_gemelo"] == 1:
+            for oferta in datos["ofertas"]:
+                assert rel[(oferta["oferta_id"], cv["cv_id"])] == rel[(oferta["oferta_id"], cv["grupo_id"])]
+
+
+def test_gemelos_balanceados_por_rol(datos):
+    conteo = Counter(c["rol"] for c in datos["cvs"] if c["es_gemelo"] == 1)
+    assert set(conteo.values()) == {10}
+
+
+def test_relevancia_regla_basica(cfg):
+    oferta = {
+        "rol": "r1",
+        "sector": "s1",
+        "min_anios": 2,
+        "nucleo": ["a", "b", "c", "d", "e"],
     }
-    with open(salida / "metadatos.json", "w", encoding="utf-8") as f:
-        json.dump(metadatos, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-    return metadatos
+    u = cfg["relevancia"]
+    perfecto = {"rol": "r1", "sector": "s1", "anios": 5, "habilidades": ["a", "b", "c", "d", "e"]}
+    assert gd.relevancia(perfecto, oferta, u) == 3
+    sin_experiencia = dict(perfecto, anios=1)
+    assert gd.relevancia(sin_experiencia, oferta, u) == 2  # cumple habilidades pero no la experiencia
+    cuatro = dict(perfecto, habilidades=["a", "b", "c", "d"])
+    assert gd.relevancia(cuatro, oferta, u) == 3  # 80 %
+    tres = dict(perfecto, habilidades=["a", "b", "c"])
+    assert gd.relevancia(tres, oferta, u) == 2  # 60 %
+    dos = dict(perfecto, habilidades=["a", "b"])
+    assert gd.relevancia(dos, oferta, u) == 1  # 40 %
+    una = dict(perfecto, habilidades=["a"])
+    assert gd.relevancia(una, oferta, u) == 0
+    otro_rol_mismo_sector = {"rol": "r2", "sector": "s1", "anios": 9, "habilidades": ["a", "b", "c"]}
+    assert gd.relevancia(otro_rol_mismo_sector, oferta, u) == 1  # 60 % en el mismo sector
+    otro_rol_menos = {"rol": "r2", "sector": "s1", "anios": 9, "habilidades": ["a", "b"]}
+    assert gd.relevancia(otro_rol_menos, oferta, u) == 0
+    otro_sector = {"rol": "r3", "sector": "s2", "anios": 9, "habilidades": ["a", "b", "c", "d", "e"]}
+    assert gd.relevancia(otro_sector, oferta, u) == 0
 
 
-def main(argv: list[str] | None = None) -> dict:
-    parser = argparse.ArgumentParser(description="Genera ofertas y CVs sintéticos en español.")
-    parser.add_argument("--config", default=str(RAIZ / "configs" / "generacion.json"))
-    parser.add_argument("--catalogo", default=str(RAIZ / "configs" / "catalogo.json"))
-    parser.add_argument("--salida", default=str(RAIZ / "data"))
-    args = parser.parse_args(argv)
-
-    cfg = cargar_json(args.config)
-    cat = cargar_json(args.catalogo)
-    datos = generar(cfg, cat)
-    meta = escribir_salida(datos, cfg, Path(args.salida))
-
-    print(f"Datos generados en: {args.salida}")
-    print(f"  Ofertas: {meta['n_ofertas']} | CVs: {meta['n_cvs_total']} "
-          f"({meta['n_cvs_base']} base + {meta['n_gemelos']} gemelos) | Pares: {meta['n_pares']}")
-    print(f"  Pares por nivel de relevancia: {meta['pares_por_nivel_relevancia']}")
-    print(f"  CVs por género: {meta['cvs_por_genero']}")
-    for nombre, huella in meta["sha256"].items():
-        print(f"  sha256 {nombre}: {huella[:16]}...")
-    return meta
+def test_hay_los_cuatro_niveles_de_relevancia(datos):
+    niveles = {p["relevancia"] for p in datos["relevancia"]}
+    assert niveles == {0, 1, 2, 3}
 
 
-if __name__ == "__main__":
-    main()
+def test_cada_oferta_tiene_candidatos_relevantes(datos):
+    """Sin relevantes no se pueden calcular nDCG, MRR ni Recall."""
+    for oferta in datos["ofertas"]:
+        rels = [p["relevancia"] for p in datos["relevancia"] if p["oferta_id"] == oferta["oferta_id"]]
+        assert sum(1 for r in rels if r >= 2) >= 10, oferta["oferta_id"]
+
+
+def test_texto_no_contiene_la_etiqueta_ni_marcas_sin_resolver(datos):
+    for cv in datos["cvs"]:
+        assert "{" not in cv["texto"] and "}" not in cv["texto"], cv["cv_id"]
+        assert "relevancia" not in cv["texto"].lower()
+        assert cv["calidad"] not in cv["texto"].split()  # la calidad es un dato interno
+
+
+def test_los_cvs_usan_sinonimos(datos, cat):
+    """La forma exacta que usa la oferta no debe aparecer en todos los CVs que tienen la habilidad."""
+    cv_con_habilidad = [c for c in datos["cvs"] if "sql" in c["habilidades"] and c["es_gemelo"] == 0]
+    assert len(cv_con_habilidad) > 10
+    forma_oferta = cat["habilidades"]["sql"][0].lower()
+    con_forma_exacta = sum(1 for c in cv_con_habilidad if forma_oferta in c["texto"].lower())
+    assert con_forma_exacta < len(cv_con_habilidad)
+
+
+def test_particion_de_ofertas(datos, cfg):
+    dev = {o["rol"] for o in datos["ofertas"] if o["particion"] == "dev"}
+    test = {o["rol"] for o in datos["ofertas"] if o["particion"] == "test"}
+    assert dev == set(cfg["particion_ofertas"]["dev"])
+    assert test == set(cfg["particion_ofertas"]["test"])
+    assert not dev & test
+
+
+def test_aplicar_genero():
+    assert gd.aplicar_genero("{Ingeniero} civil y {comprometido}", "M") == "Ingeniero civil y comprometido"
+    assert gd.aplicar_genero("{Ingeniero} civil y {comprometido}", "F") == "Ingeniera civil y comprometida"
+    assert gd.aplicar_genero("Docente {otra}", "F") == "Docente {otra}"
+
+
+def test_lista_en_texto():
+    assert gd.lista_en_texto(["a"]) == "a"
+    assert gd.lista_en_texto(["a", "b"]) == "a y b"
+    assert gd.lista_en_texto(["a", "b", "c"]) == "a, b y c"
+    assert gd.lista_en_texto(["a", "inglés"]) == "a e inglés"
+
+
+def test_catalogo_incoherente_se_rechaza(cfg, cat):
+    mal = json.loads(json.dumps(cat))
+    mal["roles"]["analista_datos"]["nucleo"][0] = "habilidad_que_no_existe"
+    with pytest.raises(ValueError):
+        gd.validar_catalogo(mal, cfg)
+
+
+def test_escritura_de_archivos(tmp_path, cfg, cat):
+    datos = gd.generar(cfg, cat)
+    meta = gd.escribir_salida(datos, cfg, tmp_path)
+    for nombre in ["ofertas.csv", "cvs.csv", "relevancia.csv", "metadatos.json"]:
+        assert (tmp_path / nombre).exists(), nombre
+    with open(tmp_path / "cvs.csv", encoding="utf-8", newline="") as f:
+        filas = list(csv.DictReader(f))
+    assert len(filas) == 400
+    assert "\n" in filas[0]["texto"]  # los saltos de línea sobreviven al CSV
+    assert meta["n_cvs_total"] == 400
+    assert set(meta["sha256"]) == {"ofertas.csv", "cvs.csv", "relevancia.csv"}
+
+
+def test_archivos_identicos_con_misma_semilla(tmp_path, cfg, cat):
+    """Los CSV salen byte a byte iguales; así cualquiera puede reproducir tu dataset."""
+    a, b = tmp_path / "a", tmp_path / "b"
+    gd.escribir_salida(gd.generar(cfg, cat), cfg, a)
+    gd.escribir_salida(gd.generar(cfg, cat), cfg, b)
+    for nombre in ["ofertas.csv", "cvs.csv", "relevancia.csv"]:
+        assert (a / nombre).read_bytes() == (b / nombre).read_bytes()
