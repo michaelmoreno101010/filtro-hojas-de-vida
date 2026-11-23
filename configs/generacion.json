@@ -1,0 +1,22 @@
+{
+  "descripcion": "Parametros del generador de datos sinteticos. Se fijan ANTES de ejecutar cualquier modelo; cambiarlos despues de ver resultados invalida la evaluacion.",
+  "semilla": 42,
+  "n_cvs_base": 300,
+  "n_gemelos": 100,
+  "anio_referencia": 2026,
+  "calidad_pesos": {"alta": 0.40, "media": 0.35, "baja": 0.25},
+  "prob_habilidad_nucleo": {"alta": 0.95, "media": 0.70, "baja": 0.40},
+  "prob_opcional": 0.35,
+  "prob_transversal": 0.25,
+  "anios": {"min": 0, "max": 15, "moda": 4},
+  "relevancia": {
+    "cobertura_3": 0.8,
+    "cobertura_2": 0.6,
+    "cobertura_1": 0.4,
+    "cobertura_1_mismo_sector": 0.6
+  },
+  "particion_ofertas": {
+    "dev": ["analista_datos", "enfermeria", "contador", "ingeniero_civil", "docente_primaria"],
+    "test": ["desarrollador_web", "nutricion", "analista_financiero", "ingeniero_industrial", "marketing_digital"]
+  }
+}
