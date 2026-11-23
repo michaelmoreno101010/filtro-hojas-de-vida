@@ -1,0 +1,212 @@
+{
+  "descripcion": "Catalogo de habilidades, roles y sectores usado por src/generar_datos.py. Todo el contenido es inventado por el autor; no proviene de ninguna fuente externa. La primera forma de cada habilidad es la que usan las ofertas; los CVs eligen cualquiera de las formas.",
+  "habilidades": {
+    "sql": ["SQL", "consultas SQL", "bases de datos relacionales"],
+    "python": ["Python", "programación en Python", "scripts en Python"],
+    "estadistica": ["estadística", "análisis estadístico", "statistics"],
+    "visualizacion": ["visualización de datos", "tableros de control", "data visualization"],
+    "excel": ["Excel", "Excel avanzado", "hojas de cálculo"],
+    "power_bi": ["Power BI", "informes en Power BI", "business intelligence"],
+    "machine_learning": ["aprendizaje automático", "machine learning", "modelos predictivos"],
+    "javascript": ["JavaScript", "programación en JavaScript", "JS moderno"],
+    "html_css": ["HTML y CSS", "maquetación web", "diseño de interfaces web"],
+    "react": ["React", "desarrollo con React", "interfaces en React"],
+    "git": ["Git", "control de versiones", "GitHub"],
+    "api_rest": ["APIs REST", "servicios web REST", "integración de APIs"],
+    "node": ["Node.js", "backend con Node", "servidores en Node.js"],
+    "docker": ["Docker", "contenedores", "contenedorización de aplicaciones"],
+    "cuidado_pacientes": ["cuidado de pacientes", "atención al paciente", "patient care"],
+    "signos_vitales": ["toma de signos vitales", "control de signos vitales", "monitoreo de signos vitales"],
+    "administracion_medicamentos": ["administración de medicamentos", "manejo de medicamentos", "medicación segura"],
+    "historia_clinica": ["historia clínica", "registros clínicos", "documentación clínica"],
+    "primeros_auxilios": ["primeros auxilios", "atención de emergencias básicas", "soporte vital básico"],
+    "urgencias": ["servicio de urgencias", "atención de urgencias", "triage"],
+    "pediatria": ["pediatría", "atención pediátrica", "cuidado infantil hospitalario"],
+    "evaluacion_nutricional": ["evaluación nutricional", "valoración nutricional", "diagnóstico nutricional"],
+    "planes_alimentarios": ["planes alimentarios", "diseño de dietas", "planificación de menús"],
+    "educacion_alimentaria": ["educación alimentaria", "charlas de alimentación saludable", "consejería nutricional"],
+    "antropometria": ["antropometría", "medidas corporales", "composición corporal"],
+    "nutricion_clinica": ["nutrición clínica", "dietoterapia", "soporte nutricional"],
+    "nutricion_deportiva": ["nutrición deportiva", "alimentación para deportistas", "sports nutrition"],
+    "contabilidad_general": ["contabilidad general", "registros contables", "cierres contables"],
+    "impuestos": ["impuestos", "declaraciones tributarias", "obligaciones fiscales"],
+    "nomina": ["nómina", "liquidación de nómina", "pagos al personal"],
+    "conciliaciones": ["conciliaciones bancarias", "conciliación de cuentas", "cuadre de cuentas"],
+    "software_contable": ["software contable", "sistemas contables ERP", "ERP contable"],
+    "auditoria": ["auditoría", "revisión de control interno", "auditing"],
+    "modelos_financieros": ["modelos financieros", "modelación financiera", "financial modeling"],
+    "presupuestos": ["presupuestos", "elaboración de presupuestos", "planeación presupuestal"],
+    "analisis_variaciones": ["análisis de variaciones", "análisis de desviaciones", "variance analysis"],
+    "reportes_gerenciales": ["reportes gerenciales", "informes para la gerencia", "reportes ejecutivos"],
+    "flujo_caja": ["flujo de caja", "proyección de caja", "gestión de tesorería"],
+    "autocad": ["AutoCAD", "dibujo técnico en CAD", "diseño asistido por computador"],
+    "presupuestos_obra": ["presupuestos de obra", "cuantificación de obra", "análisis de precios unitarios"],
+    "supervision_obra": ["supervisión de obra", "interventoría de obra", "dirección de obra"],
+    "planos": ["lectura de planos", "interpretación de planos", "planos estructurales"],
+    "normativa_construccion": ["normativa de construcción", "normas técnicas de construcción", "diseño sismorresistente"],
+    "topografia": ["topografía", "levantamientos topográficos", "topography"],
+    "gestion_proyectos": ["gestión de proyectos", "administración de proyectos", "project management"],
+    "mejora_procesos": ["mejora de procesos", "optimización de procesos", "process improvement"],
+    "lean": ["Lean Manufacturing", "manufactura esbelta", "metodología Lean"],
+    "indicadores_kpi": ["indicadores KPI", "tableros de indicadores", "medición de desempeño"],
+    "seguridad_industrial": ["seguridad industrial", "prevención de riesgos laborales", "salud y seguridad en el trabajo"],
+    "planificacion_produccion": ["planificación de la producción", "programación de producción", "production planning"],
+    "six_sigma": ["Six Sigma", "control estadístico de procesos", "calidad Six Sigma"],
+    "planeacion_clases": ["planeación de clases", "diseño de unidades didácticas", "lesson planning"],
+    "evaluacion_aprendizaje": ["evaluación del aprendizaje", "evaluación formativa", "seguimiento del progreso escolar"],
+    "manejo_grupo": ["manejo de grupo", "gestión del aula", "disciplina positiva"],
+    "material_didactico": ["material didáctico", "recursos educativos", "creación de materiales de enseñanza"],
+    "comunicacion_familias": ["comunicación con familias", "reuniones con padres", "acompañamiento a familias"],
+    "educacion_inclusiva": ["educación inclusiva", "atención a la diversidad", "necesidades educativas especiales"],
+    "tic_educativas": ["tecnologías educativas", "herramientas digitales para clase", "educational technology"],
+    "seo": ["SEO", "posicionamiento en buscadores", "optimización para buscadores"],
+    "redes_sociales": ["redes sociales", "gestión de comunidades", "social media"],
+    "google_analytics": ["Google Analytics", "analítica web", "métricas de sitios web"],
+    "campanas_pago": ["campañas de pago", "publicidad digital pagada", "Google Ads y Meta Ads"],
+    "contenido": ["creación de contenido", "marketing de contenidos", "redacción publicitaria"],
+    "email_marketing": ["email marketing", "campañas de correo electrónico", "newsletters"],
+    "diseno_grafico_basico": ["diseño gráfico básico", "edición de imágenes", "Canva"]
+  },
+  "sectores": {
+    "tic": {
+      "nombre": "Tecnología",
+      "roles": ["analista_datos", "desarrollador_web"],
+      "contextos": ["proyectos de software", "equipos de producto", "iniciativas de transformación digital", "proyectos de análisis de información"]
+    },
+    "salud": {
+      "nombre": "Salud",
+      "roles": ["enfermeria", "nutricion"],
+      "contextos": ["clínicas privadas", "hospitales de mediana complejidad", "programas de salud comunitaria", "servicios de atención ambulatoria"]
+    },
+    "finanzas": {
+      "nombre": "Finanzas y contabilidad",
+      "roles": ["contador", "analista_financiero"],
+      "contextos": ["empresas medianas", "firmas de servicios", "áreas administrativas", "cierres mensuales y anuales"]
+    },
+    "ingenieria": {
+      "nombre": "Ingeniería",
+      "roles": ["ingeniero_civil", "ingeniero_industrial"],
+      "contextos": ["obras de construcción", "plantas de producción", "proyectos de infraestructura", "operaciones industriales"]
+    },
+    "educacion_comunicacion": {
+      "nombre": "Educación y comunicación",
+      "roles": ["docente_primaria", "marketing_digital"],
+      "contextos": ["instituciones educativas", "agencias de comunicación", "proyectos de formación", "campañas para marcas locales"]
+    }
+  },
+  "roles": {
+    "analista_datos": {
+      "sector": "tic",
+      "oferta_titulo": "Analista de datos",
+      "titulos": ["Analista de datos", "Analista de información", "Data analyst"],
+      "junior": "Auxiliar de datos",
+      "nucleo": ["sql", "python", "estadistica", "visualizacion", "excel"],
+      "opcional": ["power_bi", "machine_learning"],
+      "estudios": ["Ingeniería de Sistemas", "Estadística", "Matemáticas Aplicadas", "Economía"],
+      "min_anios": 2
+    },
+    "desarrollador_web": {
+      "sector": "tic",
+      "oferta_titulo": "Desarrollador/a web",
+      "titulos": ["{Desarrollador} web", "{Desarrollador} front-end", "{Desarrollador} full stack"],
+      "junior": "Auxiliar de desarrollo",
+      "nucleo": ["javascript", "html_css", "react", "git", "api_rest"],
+      "opcional": ["node", "sql", "docker"],
+      "estudios": ["Ingeniería de Sistemas", "Tecnología en Desarrollo de Software", "Ingeniería de Software"],
+      "min_anios": 2
+    },
+    "enfermeria": {
+      "sector": "salud",
+      "oferta_titulo": "Enfermero/a profesional",
+      "titulos": ["{Enfermero} profesional", "{Enfermero} asistencial", "{Enfermero} de piso"],
+      "junior": "Auxiliar de enfermería",
+      "nucleo": ["cuidado_pacientes", "signos_vitales", "administracion_medicamentos", "historia_clinica", "primeros_auxilios"],
+      "opcional": ["urgencias", "pediatria"],
+      "estudios": ["Enfermería", "Profesional en Enfermería"],
+      "min_anios": 1
+    },
+    "nutricion": {
+      "sector": "salud",
+      "oferta_titulo": "Nutricionista",
+      "titulos": ["Nutricionista", "Nutricionista dietista", "Nutricionista de consulta"],
+      "junior": "Auxiliar de nutrición",
+      "nucleo": ["evaluacion_nutricional", "planes_alimentarios", "educacion_alimentaria", "antropometria", "nutricion_clinica"],
+      "opcional": ["nutricion_deportiva", "pediatria"],
+      "estudios": ["Nutrición y Dietética", "Profesional en Nutrición"],
+      "min_anios": 2
+    },
+    "contador": {
+      "sector": "finanzas",
+      "oferta_titulo": "Contador/a",
+      "titulos": ["{Contador} público", "{Contador} general", "{Contador} de planta"],
+      "junior": "Auxiliar contable",
+      "nucleo": ["contabilidad_general", "impuestos", "nomina", "conciliaciones", "excel"],
+      "opcional": ["software_contable", "auditoria"],
+      "estudios": ["Contaduría Pública", "Contabilidad y Finanzas"],
+      "min_anios": 3
+    },
+    "analista_financiero": {
+      "sector": "finanzas",
+      "oferta_titulo": "Analista de finanzas",
+      "titulos": ["Analista de finanzas", "Analista de planeación financiera", "Analista de presupuesto y finanzas"],
+      "junior": "Auxiliar de finanzas",
+      "nucleo": ["modelos_financieros", "presupuestos", "analisis_variaciones", "excel", "reportes_gerenciales"],
+      "opcional": ["flujo_caja", "power_bi"],
+      "estudios": ["Finanzas", "Economía", "Administración de Empresas"],
+      "min_anios": 3
+    },
+    "ingeniero_civil": {
+      "sector": "ingenieria",
+      "oferta_titulo": "Ingeniero/a civil",
+      "titulos": ["{Ingeniero} civil", "{Ingeniero} residente de obra", "{Ingeniero} de proyectos civiles"],
+      "junior": "Auxiliar de ingeniería",
+      "nucleo": ["autocad", "presupuestos_obra", "supervision_obra", "planos", "normativa_construccion"],
+      "opcional": ["topografia", "gestion_proyectos"],
+      "estudios": ["Ingeniería Civil"],
+      "min_anios": 3
+    },
+    "ingeniero_industrial": {
+      "sector": "ingenieria",
+      "oferta_titulo": "Ingeniero/a industrial",
+      "titulos": ["{Ingeniero} industrial", "{Ingeniero} de procesos", "{Ingeniero} de mejora continua"],
+      "junior": "Auxiliar de producción",
+      "nucleo": ["mejora_procesos", "lean", "indicadores_kpi", "seguridad_industrial", "planificacion_produccion"],
+      "opcional": ["six_sigma", "gestion_proyectos"],
+      "estudios": ["Ingeniería Industrial"],
+      "min_anios": 3
+    },
+    "docente_primaria": {
+      "sector": "educacion_comunicacion",
+      "oferta_titulo": "Docente de primaria",
+      "titulos": ["Docente de primaria", "Docente de básica primaria", "Docente de aula"],
+      "junior": "Auxiliar docente",
+      "nucleo": ["planeacion_clases", "evaluacion_aprendizaje", "manejo_grupo", "material_didactico", "comunicacion_familias"],
+      "opcional": ["educacion_inclusiva", "tic_educativas"],
+      "estudios": ["Licenciatura en Educación Básica", "Licenciatura en Pedagogía Infantil"],
+      "min_anios": 2
+    },
+    "marketing_digital": {
+      "sector": "educacion_comunicacion",
+      "oferta_titulo": "Especialista en marketing digital",
+      "titulos": ["Especialista en marketing digital", "Especialista en publicidad digital", "Analista de marketing digital"],
+      "junior": "Auxiliar de marketing",
+      "nucleo": ["seo", "redes_sociales", "google_analytics", "campanas_pago", "contenido"],
+      "opcional": ["email_marketing", "diseno_grafico_basico"],
+      "estudios": ["Mercadeo y Publicidad", "Comunicación Social", "Administración de Empresas"],
+      "min_anios": 2
+    }
+  },
+  "nombres": {
+    "F": ["María", "Camila", "Valentina", "Daniela", "Laura", "Sofía", "Andrea", "Paula", "Juliana", "Carolina", "Natalia", "Luisa", "Mariana", "Isabela", "Diana", "Alejandra", "Sara", "Manuela", "Gabriela", "Lucía"],
+    "M": ["Juan", "Santiago", "Andrés", "Carlos", "Sebastián", "Daniel", "David", "Felipe", "Miguel", "Alejandro", "Mateo", "Nicolás", "Julián", "Camilo", "Jorge", "Luis", "Diego", "Esteban", "Samuel", "Tomás"]
+  },
+  "apellidos": ["García", "Rodríguez", "Martínez", "López", "González", "Hernández", "Pérez", "Sánchez", "Ramírez", "Torres", "Flores", "Rivera", "Gómez", "Díaz", "Vargas", "Castro", "Romero", "Navarro", "Jiménez", "Ortiz", "Rojas", "Mejía", "Cárdenas", "Ríos", "Suárez", "Medina", "Herrera", "Aguirre", "Londoño", "Cortés"],
+  "instituciones": {
+    "prefijos": ["Universidad", "Institución Universitaria", "Corporación Universitaria", "Politécnico"],
+    "sufijos": ["de Altamira", "Valdoria", "Monteverde Austral", "del Arrayán", "Horizonte Sur", "Cumbre Andina", "de Santa Alba", "Río Claro"]
+  },
+  "empresas": {
+    "prefijos": ["Grupo", "Servicios", "Soluciones", "Corporación", "Consultores"],
+    "sufijos": ["Altavista", "Meridiana", "Orión", "Cumbre", "Horizonte", "Valdoria", "Montecarmelo", "Arrayán"]
+  }
+}
