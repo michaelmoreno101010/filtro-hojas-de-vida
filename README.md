@@ -1,32 +1,59 @@
-# Filtro de hojas de vida con auditoría de sesgo
+## Aplicación web — Filtro Hoja de Vida
 
-Prototipo educativo de Machine Learning (proyecto 26 del taller): ordena hojas de vida según su ajuste a una oferta de trabajo, con ranking explicable y auditoría de sesgo. **No decide nada por sí solo: una persona siempre revisa y decide.**
+Filtro Hoja de Vida es una aplicación web desarrollada en Python y Streamlit que permite explorar los resultados del modelo BM25 con neutralización de género (E-04).
 
-## Estado
-- [x] Planteamiento y referencias (`docs/`)
-- [x] Generador de datos sintéticos en español (`src/generar_datos.py`)
-- [ ] Línea base BM25 / TF-IDF
-- [ ] Ranking con embeddings
-- [ ] Auditoría de sesgo contrafactual
-- [ ] Aplicación (Streamlit)
+### Funcionalidades
 
-!git clone https://github.com/michaelmoreno101010/filtro-hojas-de-vida.git
-%cd filtro-hojas-de-vida
-!pip install -q pytest
-!python -m pytest -q
-!python -m src.generar_datos
-```
+- Exploración de 400 hojas de vida sintéticas y 10 ofertas laborales.
+- Ranking de documentos mediante BM25.
+- Explicabilidad mediante aportes individuales por palabra.
+- Resaltado de coincidencias textuales.
+- Auditoría de sesgo mediante 100 pares contrafactuales.
+- Monitoreo de latencia y costo de API.
+- Exportación de resultados en formato CSV.
+- Interfaz gráfica interactiva.
 
-## Datos
-Los CVs y ofertas son **sintéticos** (inventados por el autor, sin personas reales). La decisión y sus limitaciones están en `docs/decision_datos.md`; la descripción de las variables, en `docs/ficha_datos.md`.
+### Instalación y ejecución
 
-## Estructura
-```
-configs/   catálogo de habilidades y parámetros de generación
-src/       código
-tests/     pruebas automáticas
-notebooks/ cuadernos de exploración
-docs/      planteamiento, referencias, decisiones, fichas
-data/      datos generados (se regeneran con el script)
-results/   figuras y tablas de resultados
-```
+Requisitos: Python 3.13 y Git.
+
+Crear el entorno virtual:
+
+`python -m venv .venv`
+
+Instalar las dependencias:
+
+`.\.venv\Scripts\python.exe -m pip install -r requirements.txt`
+
+Ejecutar las pruebas automatizadas:
+
+`.\.venv\Scripts\python.exe -m pytest -q`
+
+Iniciar la aplicación:
+
+`.\.venv\Scripts\python.exe -m streamlit run app.py`
+
+Acceder desde el navegador:
+
+http://localhost:8501
+
+### Resultados de validación
+
+- 54 pruebas automatizadas aprobadas.
+- 100 % de empates contrafactuales en la partición dev evaluada.
+- Razón de impacto F/M: 1,083.
+- Saltos en el top-10: 6,7 % en la partición dev.
+- Latencia media observada: 2,39 ms en dos consultas locales.
+- Costo de API externa por consulta: 0 COP.
+
+### Reproducción de experimentos
+
+Las dependencias originales de los experimentos se conservan en `requirements-experimentos.txt`.
+
+### Limitaciones y uso responsable
+
+La aplicación fue desarrollada exclusivamente con fines académicos y utiliza datos sintéticos. No debe utilizarse para contratar, descartar ni evaluar personas reales. Los resultados de la auditoría no garantizan la ausencia de discriminación en escenarios reales.
+
+### Despliegue
+
+Aplicación desarrollada para su publicación en Streamlit Community Cloud.
