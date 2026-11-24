@@ -26,7 +26,7 @@ Limitaciones: las hojas de vida son más homogéneas que las reales, y la regla 
 
 ## 3. Declaración de uso de IA
 
-Usé un asistente de IA (Claude) como apoyo para diseñar el proyecto, escribir el código y redactar documentos. La declaración completa está en `docs/declaracion_ia.md`. Las cifras de este informe salen de las ejecuciones que hice yo mismo y están guardadas en `results/`.
+Usé un asistente de IA (Claude) como apoyo para algunos aspecto de el proyecto. La declaración completa está en `docs/declaracion_ia.md`. Las cifras de este informe salen de las ejecuciones que hice yo mismo y están guardadas en `results/`.
 
 ## 4. Método
 
