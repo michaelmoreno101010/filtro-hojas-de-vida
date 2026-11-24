@@ -97,3 +97,45 @@ Los embeddings y el híbrido **no se evaluaron en `test`** porque se descartaron
 - **Lo que más falla son los relevantes perdidos:** 31 casos fuera del top-30, sobre todo en analista de datos y enfermería. Son CVs que sí tienen las habilidades requeridas pero quedan abajo. Mi hipótesis, que no comprobé con un experimento, es que BM25 solo cuenta palabras exactas, así que los CVs que expresan la misma habilidad con otras palabras o en listas largas puntúan menos.
 - Un analista de datos con 12 años y relevancia 3 (cv_209) queda en la posición 47 de 400.
 - Esto coincide con el límite del Recall@10 (≈0,33): solo caben 10 CVs y hay unos 30 relevantes por oferta.
+
+## 9. Explicabilidad
+
+El sistema final (BM25 con género neutralizado) es explicable por construcción: el puntaje de cada hoja de vida es la suma de las contribuciones de cada palabra de la oferta que aparece en ella, ponderada por qué tan rara es esa palabra en el conjunto. Por eso, para cualquier hoja de vida se puede decir exactamente qué palabras la subieron en el ranking. Los embeddings no permiten esto de forma directa, y es una razón más para preferir BM25 neutro.
+
+**Lo que NO se hizo:** en esta entrega no se construyó una interfaz ni un script que muestre esa explicación al usuario. La explicabilidad aquí es una propiedad del método, no una función implementada. Es una limitación y el trabajo pendiente más claro.
+
+**Qué ve una persona reclutadora hoy:** solo el ranking. Por eso el uso permitido es apoyar el orden de lectura, con revisión humana de los CVs completos.
+
+## 10. Limitaciones y riesgos
+
+- **Datos sintéticos:** los resultados no se pueden generalizar a hojas de vida reales, que son más variadas, tienen errores y distintos formatos.
+- **La regla de relevancia es mía:** se calcula a partir de rol, años y habilidades, y puede favorecer a los métodos que entienden esa regla.
+- **La neutralización usa la lista del generador:** en CVs reales habría muchas más palabras con género y la lista nunca sería completa.
+- **La auditoría es limitada:** cubre solo género binario, con pares sintéticos y entre 11 y 21 pares en el top-10. No cubre edad, origen, nombre ni otras señales. Pasarla no prueba que el sistema sea justo.
+- **Pocas ofertas:** 5 en desarrollo y 5 en prueba, por lo que diferencias de centésimas son ruido.
+- **Se pierden CVs relevantes:** 31 casos en dev quedaron fuera del top-30 por usar otro vocabulario.
+- **Sin interfaz de explicación** (ver sección 9).
+
+La matriz completa de riesgos y las consideraciones éticas están en `docs/riesgos_y_etica.md`.
+
+## 11. Conclusiones
+
+1. En estos datos sintéticos, BM25 (nDCG@10 de 0,869 en dev) superó a los embeddings (0,718) y al híbrido (0,842 con el modelo usado).
+2. BM25 simple **sí discrimina por género**, por una causa concreta y comprobada: los títulos "Ingeniero/a" solo coinciden con el CV masculino. Incumple los criterios en dev y en test.
+3. Neutralizar las formas con género corrige el problema con un costo pequeño: −0,017 de nDCG@10 en dev y ninguno en test (0,791 contra 0,790).
+4. Los embeddings no favorecen a un género, pero el nombre y el género gramatical cambian mucho las posiciones, por lo que tampoco pasan la auditoría.
+5. Mi hipótesis de que el límite de 128 tokens perdía información fue refutada por E-03.
+6. El resultado no prueba que el sistema sea justo ni sirva con CVs reales. Este sistema solo ordena y **la decisión siempre la toma una persona**.
+
+**Trabajo futuro:** mostrar la explicación por palabra al usuario, probar con hojas de vida reales anonimizadas y con consentimiento, ampliar la auditoría a más atributos y más ofertas.
+
+## 12. Referencias y documentos
+
+Las referencias completas, con lo que se tomó de cada una, están en `docs/referencias.md`. Otros documentos del repositorio:
+
+- `docs/planteamiento.md`: planteamiento del problema.
+- `docs/decision_datos.md` y `docs/ficha_datos.md`: decisión y descripción de los datos.
+- `docs/bitacora_experimentos.md`: registro de experimentos.
+- `docs/riesgos_y_etica.md`: matriz de riesgos y ética.
+- `docs/declaracion_ia.md`: declaración de uso de IA.
+- `results/`: todos los resultados que sustentan las cifras de este informe.
