@@ -15,6 +15,8 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import html
+import re
 from pathlib import Path
 
 from src.linea_base import BM25, RAIZ, leer_csv, ordenar
@@ -31,6 +33,24 @@ def contribuciones(modelo: BM25, indice_cv: int, consulta: list[str]) -> dict[st
         if f:
             salida[t] = modelo.idf[t] * f * (modelo.k1 + 1) / (f + norm)
     return dict(sorted(salida.items(), key=lambda x: (-x[1], x[0])))
+
+
+def resaltar_html(texto: str, palabras: set[str], neutro: bool = True) -> str:
+    """Devuelve el texto en HTML seguro con ``<mark>`` sobre las palabras que aportaron al puntaje."""
+    from src.linea_base import tokenizar
+
+    toks = tokenizar_neutro if neutro else tokenizar
+    partes, ultimo = [], 0
+    for m in re.finditer(r"\w+", texto):
+        partes.append(html.escape(texto[ultimo:m.start()]))
+        palabra = m.group(0)
+        if any(t in palabras for t in toks(palabra)):
+            partes.append(f"<mark>{html.escape(palabra)}</mark>")
+        else:
+            partes.append(html.escape(palabra))
+        ultimo = m.end()
+    partes.append(html.escape(texto[ultimo:]))
+    return "".join(partes).replace("\n", "<br>")
 
 
 def explicar_oferta(datos: Path, oferta_id: str, top: int = 5) -> list[dict]:
