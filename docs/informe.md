@@ -1,6 +1,6 @@
 # Filtro de hojas de vida: ranking explicable y auditoría de sesgo
 
-Proyecto 26 del taller de aprendizaje automático. Trabajo individual.
+Proyecto 26 del taller de aprendizaje automático.
 
 ## 1. Problema y alcance
 
