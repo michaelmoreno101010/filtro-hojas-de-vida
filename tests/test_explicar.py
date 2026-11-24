@@ -7,7 +7,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
 from src import generar_datos as gd  # noqa: E402
-from src.explicar import explicar_oferta  # noqa: E402
+from src.explicar import explicar_oferta, resaltar_html  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -32,3 +32,10 @@ def test_el_top_viene_ordenado_por_puntaje(datos):
 def test_oferta_inexistente_da_error(datos):
     with pytest.raises(ValueError):
         explicar_oferta(datos, "of_99")
+
+
+def test_resaltar_marca_palabras_sin_importar_tildes_ni_genero():
+    out = resaltar_html("Ingeniera con gestión <b>x</b>", {"ingeniero", "gestion"})
+    assert "<mark>Ingeniera</mark>" in out
+    assert "<mark>gestión</mark>" in out
+    assert "&lt;b&gt;" in out  # el HTML del texto se escapa
