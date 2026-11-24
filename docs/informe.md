@@ -100,12 +100,15 @@ Los embeddings y el híbrido **no se evaluaron en `test`** porque se descartaron
 
 ## 9. Explicabilidad
 
-El sistema final (BM25 con género neutralizado) es explicable por construcción: el puntaje de cada hoja de vida es la suma de las contribuciones de cada palabra de la oferta que aparece en ella, ponderada por qué tan rara es esa palabra en el conjunto. Por eso, para cualquier hoja de vida se puede decir exactamente qué palabras la subieron en el ranking. Los embeddings no permiten esto de forma directa, y es una razón más para preferir BM25 neutro.
+El sistema final (BM25 con género neutralizado) es explicable por construcción: el puntaje de cada hoja de vida es la suma de la contribución de cada palabra de la oferta que aparece en ella, ponderada por qué tan rara es esa palabra en el conjunto. El módulo `src/explicar.py` descompone ese puntaje y muestra, para cada CV del top, las palabras que más lo subieron y cuánto aportó cada una. Una prueba automática verifica que la suma de los aportes es exactamente el puntaje.
 
-**Lo que NO se hizo:** en esta entrega no se construyó una interfaz ni un script que muestre esa explicación al usuario. La explicabilidad aquí es una propiedad del método, no una función implementada. Es una limitación y el trabajo pendiente más claro.
+Ejemplo de uso: `python -m src.explicar --oferta of_01 --top 5`. [PEGA AQUÍ 1 CV DE LA SALIDA QUE TE DIO COLAB, con sus palabras y aportes, y escribe una línea con tus palabras sobre qué te dice.]
 
-**Qué ve una persona reclutadora hoy:** solo el ranking. Por eso el uso permitido es apoyar el orden de lectura, con revisión humana de los CVs completos.
+**Qué explica y qué no:** la explicación dice qué palabras coincidieron, no si la persona es buena candidata. Una palabra puede aparecer sin que la persona sepa usar esa habilidad, y un buen candidato puede usar otras palabras y quedar abajo (ver sección 8). Los embeddings no permiten esta descomposición de forma directa, y es una razón más para elegir BM25 neutro.
 
+**Lo que NO se hizo:** no se construyó una interfaz gráfica; la explicación se obtiene por línea de comandos. Es una limitación y trabajo futuro.
+
+**Uso previsto:** la persona reclutadora ve el ranking con sus explicaciones y lee los CVs completos. La decisión es siempre suya.
 ## 10. Limitaciones y riesgos
 
 - **Datos sintéticos:** los resultados no se pueden generalizar a hojas de vida reales, que son más variadas, tienen errores y distintos formatos.
@@ -114,7 +117,7 @@ El sistema final (BM25 con género neutralizado) es explicable por construcción
 - **La auditoría es limitada:** cubre solo género binario, con pares sintéticos y entre 11 y 21 pares en el top-10. No cubre edad, origen, nombre ni otras señales. Pasarla no prueba que el sistema sea justo.
 - **Pocas ofertas:** 5 en desarrollo y 5 en prueba, por lo que diferencias de centésimas son ruido.
 - **Se pierden CVs relevantes:** 31 casos en dev quedaron fuera del top-30 por usar otro vocabulario.
-- **Sin interfaz de explicación** (ver sección 9).
+- **Sin interfaz gráfica: la explicación solo se obtiene por línea de comandos (ver sección 9).
 
 La matriz completa de riesgos y las consideraciones éticas están en `docs/riesgos_y_etica.md`.
 
